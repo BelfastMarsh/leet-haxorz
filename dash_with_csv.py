@@ -6,183 +6,43 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import requests
-import json
 
 # Initialize the Dash app
 app = dash.Dash(__name__, title="Spurious Ireland: Correlation ≠ Causation")
 
+# Sample data - in real implementation, you'd load CSO data
+# You would replace this with actual data from CSO
+years = list(range(2010, 2024))
 
-def parse_reponse(dimensions, values):
-    dimension_compiled = {}
-    for d in dimensions.keys():
-        # dimension_compiled.append([])
-        # print(dimensions[d]['category']['label'])
-        tmparray = []
-        for lst in dimensions[d]['category']['label'].keys():
-            tmparray.append(dimensions[d]['category']['label'][lst])
-        dimension_compiled[d] = tmparray
+# Simulated data - replace with actual CSO data
+data = {
+    'Year': years,
+    'Potato_Yield_Tonnes_per_Hectare': [32, 33, 30, 28, 35, 37, 31, 33, 29, 31, 36, 34, 32, 35],
+    'Net_Migration_Thousands': [-27, -34, -25, -10, -1, 5, 16, 19, 28, 33, 30, 11, 14, 19],
+    'Marriages': [21200, 20500, 22000, 21300, 22500, 23600, 24200, 22300, 21800, 23200, 16000, 18500, 21900, 22800],
+    'GDP_Growth_Rate': [1.8, 0.2, 0.0, 1.6, 8.6, 25.2, 3.7, 9.1, 9.0, 5.7, -3.0, 13.6, 12.0, 2.5]
+}
 
-    n = 0
-    lst2 = [[""]]
-    while n < len(dimension_compiled):
-        lst2.append([])
-        for d in dimension_compiled[list(dimension_compiled.keys())[n]]:
-            for l in lst2[n]:
-                lst2[n + 1].append(l + "_" + d)
-        n = n + 1
+mig_df = pd.read_csv('C:\\Users\\Hackathon_05\\Downloads\\PEA15.20250402T130435.csv')
+print(mig_df.head())
 
-    m = 0
-    data_dict = []
-    for l in lst2[len(lst2) - 1]:
-        tmpd = {}
-        f = l.split("_")
-        r = 1
-        for lbl in list(dimension_compiled.keys()):
-            tmpd[lbl] = f[r]
-            r = r + 1
-        tmpd["value"] = values[m]
-        data_dict.append(tmpd)
-        m = m + 1
-    return data_dict
+mig_filtered = mig_df[mig_df['Component'] == 'Net migration']
+mig_filtered = mig_filtered[mig_filtered['Year'].between(2010, 2023)]
+print(mig_filtered)
 
 
+potato_df = pd.read_csv('C:\\Users\\Hackathon_05\\Downloads\\AQA04.20250402T130456.csv')
+print(potato_df.head())
 
-# Function to fetch data from CSO API
-def get_cso_data(table_id, variables=None):
-    """
-    Fetch data from CSO PxStat API
-    
-    Args:
-        table_id: The ID of the table to fetch
-        variables: Dictionary of variables to filter by
-    
-    Returns:
-        pandas DataFrame with the results
-    """
-    url = f"https://ws.cso.ie/public/api.restful/PxStat.Data.Cube_API.ReadDataset/{table_id}/JSON-stat/2.0/en"
-    
-    # If variables are specified, add them to the request
-    if variables:
-        params = {
-            "query": json.dumps({"request": variables}),
-            "format": "json-stat2"
-        }
-        response = requests.get(url, params=params)
-    else:
-        response = requests.get(url)
-    
-    if response.status_code == 200:
-        data = response.json()
-        
-        # Process JSON-stat format to pandas DataFrame
-        # This part depends on the structure of the response
-        # Example basic processing:
-        dimensions = data['dimension']
-        values = data['value']
-        
-        # Create a DataFrame based on the specific structure
-        # This is a simplified example - you'll need to adapt it
-        results = parse_reponse(dimensions, values)
+potato_filtered = potato_df[potato_df['Type of Crop'] == 'Potatoes']
+potato_filtered = potato_filtered[potato_filtered['Year'].between(2010, 2023)]
+potato_filtered = potato_filtered[potato_filtered['Statistic Label'] == 'Crop Production']
+print(potato_filtered)
 
-        
-        # Process based on the specific structure of the dataset
-        # More processing code would go here
-        
-        return pd.DataFrame(results)
-    else:
-        print(f"Error fetching data: {response.status_code}")
-        return pd.DataFrame()
+df = pd.DataFrame(data)
 
-# Function to get potato yield data
-def get_potato_data():
-    """
-    Get potato yield data from CSO
-    For this example, I'm using a sample - replace with actual API call
-    
-    Table code for crops: AQA04 (Crop Yield and Production)
-    """
-    # In reality, you would do:
-    data = get_cso_data("AWA04")
-    
-    #data = get_cso_data("AQA04", {"TYPE OF CROP": ["Potatoes"], "Statistic": ["Crop Production (000 Tonnes)"], 
-    #                              "Year": ["2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023"]})
-    # Returning sample data for now
-    #years = list(range(2010, 2024))
-    #data = {
-    #    'Year': years,
-    #    'Potato_Yield_Tonnes_per_Hectare': [32, 33, 30, 28, 35, 37, 31, 33, 29, 31, 36, 34, 32, 35]
-    #}
-    return pd.DataFrame(data)
-
-# Function to get migration data
-def get_migration_data():
-    """
-    Get migration data from CSO
-    
-    Table code for migration: PEA15 (Population and Migration Estimates)
-    """
-    # In reality, you would do:
-    # df = get_cso_data("PEA15", {"STATISTIC": ["Immigration", "Emigration"]})
-    data = get_cso_data("PEA15")
-    # Then calculate net migration as Immigration - Emigration
-    # Returning sample data for now
-    return pd.DataFrame(data)
-
-# Function to get marriages data
-def get_marriages_data():
-    """
-    Get marriages data from CSO
-    
-    Table code for marriages: VSA01 (Marriages)
-    """
-    # In reality, you would do:
-    # df = get_cso_data("VSA01", {"Statistic": ["Number of Marriages"]})
-    # Returning sample data for now
-    years = list(range(2010, 2024))
-    data = {
-        'Year': years,
-        'Marriages': [21200, 20500, 22000, 21300, 22500, 23600, 24200, 22300, 21800, 23200, 16000, 18500, 21900, 22800]
-    }
-    return pd.DataFrame(data)
-
-# Function to get GDP data
-def get_gdp_data():
-    """
-    Get GDP growth data from CSO
-    
-    Table code for GDP: NQQ28 (Quarterly National Accounts)
-    """
-    # In reality, you would do:
-    # df = get_cso_data("NQQ28", {"Statistic": ["Percentage Change Over Previous Period"]})
-    # Then aggregate quarterly data to annual
-    # Returning sample data for now
-    years = list(range(2010, 2024))
-    data = {
-        'Year': years,
-        'GDP_Growth_Rate': [1.8, 0.2, 0.0, 1.6, 8.6, 25.2, 3.7, 9.1, 9.0, 5.7, -3.0, 13.6, 12.0, 2.5]
-    }
-    return pd.DataFrame(data)
-
-# Fetch and merge data
-def get_merged_data():
-    potato_df = get_potato_data()
-    migration_df = get_migration_data()
-    marriages_df = get_marriages_data()
-    gdp_df = get_gdp_data()
-    
-    # Merge all datasets on Year
-    merged_df = potato_df.merge(migration_df, on='Year', how='outer')
-    merged_df = merged_df.merge(marriages_df, on='Year', how='outer')
-    merged_df = merged_df.merge(gdp_df, on='Year', how='outer')
-    
-    return merged_df
-
-# Fetch all data
-df = get_merged_data()
-
-# Calculate correlation coefficients
-corr_potato_migration = round(np.corrcoef(df['Potato_Yield_Tonnes_per_Hectare'], df['Net_Migration_Thousands'])[0, 1], 2)
+# Add correlation calculations
+corr_potato_migration = round(np.corrcoef(potato_filtered['VALUE'], mig_filtered['VALUE'])[0,1], 2)
 corr_marriages_gdp = round(np.corrcoef(df['Marriages'], df['GDP_Growth_Rate'])[0, 1], 2)
 
 # App layout
@@ -212,10 +72,10 @@ app.layout = html.Div([
             html.H3("Time Period:"),
             dcc.RangeSlider(
                 id='year-slider',
-                min=min(df['Year']),
-                max=max(df['Year']),
-                value=[min(df['Year']), max(df['Year'])],
-                marks={year: str(year) for year in range(min(df['Year']), max(df['Year'])+1, 2)},
+                min=min(years),
+                max=max(years),
+                value=[min(years), max(years)],
+                marks={year: str(year) for year in range(min(years), max(years)+1, 2)},
                 step=1
             )
         ], style={'width': '65%', 'display': 'inline-block', 'verticalAlign': 'top'})
@@ -227,15 +87,6 @@ app.layout = html.Div([
     
     html.Div(id='explanation-text', 
              style={'margin': '20px', 'padding': '15px', 'backgroundColor': '#F0FFF0', 'borderRadius': '10px'}),
-    
-    html.Div([
-        html.H3("Data Sources", style={'textAlign': 'center'}),
-        html.P([
-            "All data is sourced from the Central Statistics Office (CSO) of Ireland. ",
-            "The datasets used include potato crop yields, migration statistics, ",
-            "marriage numbers, and GDP growth rates."
-        ], style={'textAlign': 'justify'})
-    ], style={'margin': '20px 0', 'padding': '15px', 'backgroundColor': '#F5F5F5', 'borderRadius': '10px'}),
     
     html.Div([
         html.H3("How This Works", style={'textAlign': 'center'}),

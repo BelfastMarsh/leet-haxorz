@@ -37,7 +37,7 @@ def get_cso_data(table_id, variables=None):
         
         # Create a DataFrame based on the specific structure
         # This is a simplified example - you'll need to adapt it
-        results = data
+        results = json.load(data)
         # Process based on the specific structure of the dataset
         # More processing code would go here
         
